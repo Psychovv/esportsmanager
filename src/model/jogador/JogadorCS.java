@@ -4,8 +4,7 @@ import model.enums.Jogo;
 import model.enums.Posicao;
 
 /**
- * Representa um jogador de Counter-Strike.
- * PESSOA 1 — implementar atributos específicos do CS (ex: rating, abates, etc.)
+teste
  */
 public class JogadorCS extends Jogador {
 

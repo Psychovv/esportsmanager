@@ -28,7 +28,6 @@ public class JogadorCS extends Jogador {
     /**
      * TODO Pessoa 1: definir fórmula de pontuação real para ranking.
      * Por enquanto usa o rating diretamente.
-     * teste
      */
     @Override
     public double getPontuacao() {

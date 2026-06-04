@@ -29,7 +29,7 @@ src/
 | Pessoa 1 | Modelagem | `model/`, `interfaces/`, `model/enums/` |
 | Pessoa 2 | Repositórios | `repository/` |
 | Pessoa 3 | Serviços | `service/JogadorService`, `service/TransferenciaService` |
-| Pessoa 4 | Interface Console | `app/Main.java` |
+| Medina | Interface Console | `app/Main.java` |
 
 ## Divisão de Tarefas — Sprint 2
 
@@ -38,7 +38,7 @@ src/
 | Pessoa 1 | `service/RankingService` (ranking geral, por jogo, por posição) |
 | Pessoa 2 | `service/ArquivoService` (salvar/carregar em arquivos .txt) |
 | Pessoa 3 | `exception/` — integrar exceções nos services |
-| Pessoa 4 | `view/` — telas Swing (TelaPrincipal, TelaJogador, TelaRanking, TelaTime) |
+| Medina | `view/` — telas Swing (TelaPrincipal, TelaJogador, TelaRanking, TelaTime) |
 
 ## Como configurar no IntelliJ IDEA
 

@@ -32,7 +32,7 @@ public class JogadorCS extends Jogador {
 
     @Override
     public Jogo getJogo() {
-        return Jogo.CS; // Certifique-se de que no seu Enum está "CS" e não "CSGO" como eu havia sugerido antes
+        return Jogo.CS;
     }
 
     /**

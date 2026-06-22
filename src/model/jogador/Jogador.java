@@ -7,7 +7,6 @@ import model.enums.Posicao;
 
 /**
  * Classe abstrata base para todos os jogadores.
- * PESSOA 1 — implementar atributos e métodos concretos.
  */
 public abstract class Jogador implements Ranqueavel, Exibivel {
 
@@ -19,7 +18,7 @@ public abstract class Jogador implements Ranqueavel, Exibivel {
     private double salario;
     private String timeAtual; // nome do time ou null se sem time
 
-    // TODO Pessoa 1: adicionar outros atributos relevantes (ex: nacionalidade, etc.)
+    // TODO: Adicionar outros atributos relevantes (ex: nacionalidade, etc.)
 
     public Jogador(int id, String nick, String nomeReal, int idade, Posicao posicao, double salario) {
         this.id = id;

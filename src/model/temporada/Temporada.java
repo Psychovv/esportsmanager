@@ -10,7 +10,7 @@ public class Temporada {
     private int ano;
     private Jogo jogo;
 
-    // Atributos adicionados (Pessoa 1)
+    // Atributos adicionados
     private String vencedor;
     private boolean encerrada;
 

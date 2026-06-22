@@ -7,15 +7,12 @@ import model.time.Time;
 import repository.JogadorRepository;
 import repository.TimeRepository;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * Serviço responsável pelos rankings do sistema.
- * PESSOA 1 (Sprint 2) — implementar todos os métodos marcados com TODO.
  */
 public class RankingService {
 
@@ -28,38 +25,40 @@ public class RankingService {
     }
 
     /**
-     * Retorna ranking geral de jogadores (todos os jogos) ordenado por pontuação.
-     * TODO Pessoa 1 Sprint 2: usar Collections.sort() ou Comparator.
+     * Retorna ranking geral de jogadores (todos os jogos) ordenado por pontuação decrescente.
      */
     public List<Jogador> rankingGeralJogadores() {
-        // TODO: pegar lista, ordenar por getPontuacao() decrescente
-        throw new UnsupportedOperationException("Não implementado ainda — Sprint 2");
+        List<Jogador> lista = jogadorRepository.listarJogadores();
+        lista.sort(Comparator.comparingDouble(Jogador::getPontuacao).reversed());
+        return lista;
     }
 
     /**
-     * Retorna ranking de jogadores filtrado por jogo.
-     * TODO Pessoa 1 Sprint 2: implementar.
+     * Retorna ranking de jogadores filtrado por jogo, ordenado por pontuação decrescente.
      */
     public List<Jogador> rankingPorJogo(Jogo jogo) {
-        // TODO: filtrar por jogo + ordenar
-        throw new UnsupportedOperationException("Não implementado ainda — Sprint 2");
+        return jogadorRepository.listarJogadores().stream()
+                .filter(j -> j.getJogo() == jogo)
+                .sorted(Comparator.comparingDouble(Jogador::getPontuacao).reversed())
+                .collect(Collectors.toList());
     }
 
     /**
-     * Retorna ranking de jogadores filtrado por posição.
-     * TODO Pessoa 1 Sprint 2: implementar.
+     * Retorna ranking de jogadores filtrado por posição, ordenado por pontuação decrescente.
      */
     public List<Jogador> rankingPorPosicao(Posicao posicao) {
-        // TODO: filtrar por posicao + ordenar
-        throw new UnsupportedOperationException("Não implementado ainda — Sprint 2");
+        return jogadorRepository.listarJogadores().stream()
+                .filter(j -> j.getPosicao() == posicao)
+                .sorted(Comparator.comparingDouble(Jogador::getPontuacao).reversed())
+                .collect(Collectors.toList());
     }
 
     /**
-     * Retorna ranking de times ordenado por pontuação.
-     * TODO Pessoa 1 Sprint 2: implementar.
+     * Retorna ranking de times ordenado por pontuação decrescente.
      */
     public List<Time> rankingTimes() {
-        // TODO: pegar lista de times, ordenar por getPontuacao() decrescente
-        throw new UnsupportedOperationException("Não implementado ainda — Sprint 2");
+        List<Time> lista = timeRepository.listarTimes();
+        lista.sort(Comparator.comparingDouble(Time::getPontuacao).reversed());
+        return lista;
     }
 }

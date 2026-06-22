@@ -2,7 +2,6 @@ package exception;
 
 /**
  * Lançada quando um jogador não é encontrado no repositório.
- * PESSOA 3 (Sprint 2) — integrar nos services.
  */
 public class JogadorNaoEncontradoException extends Exception {
 

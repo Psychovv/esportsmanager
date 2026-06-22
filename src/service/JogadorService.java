@@ -1,5 +1,6 @@
 package service;
 
+import exception.JogadorNaoEncontradoException;
 import model.enums.Jogo;
 import model.jogador.Jogador;
 import repository.JogadorRepository;
@@ -10,7 +11,6 @@ import java.util.stream.Collectors;
 
 /**
  * Serviço de negócio para operações com jogadores.
- * PESSOA 3 — implementar todos os métodos marcados com TODO.
  */
 public class JogadorService {
 
@@ -21,40 +21,54 @@ public class JogadorService {
     }
 
     /**
-     * Cadastra um jogador no sistema.
-     * TODO Pessoa 3: validar dados antes de delegar ao repositório.
-     * (ex: nick não pode ser vazio, jogador não pode já estar cadastrado)
+     * Cadastra um jogador no sistema, validando nick duplicado e campos vazios.
      */
     public void cadastrarJogador(Jogador jogador) {
-        // TODO: validações + jogadorRepository.adicionarJogador(jogador)
-        throw new UnsupportedOperationException("Não implementado ainda — Pessoa 3");
+        if (jogador.getNick() == null || jogador.getNick().trim().isEmpty()) {
+            throw new IllegalArgumentException("O nick do jogador não pode ser vazio.");
+        }
+
+        boolean nickJaExiste = jogadorRepository.buscarPorNick(jogador.getNick()).isPresent();
+        if (nickJaExiste) {
+            throw new IllegalArgumentException("Já existe um jogador cadastrado com o nick '" + jogador.getNick() + "'.");
+        }
+
+        jogadorRepository.adicionarJogador(jogador);
     }
 
     /**
      * Remove um jogador pelo ID.
-     * TODO Pessoa 3: lançar JogadorNaoEncontradoException se não existir.
      */
-    public void removerJogador(int id) {
-        // TODO: chamar repositório, tratar exceção
-        throw new UnsupportedOperationException("Não implementado ainda — Pessoa 3");
+    public void removerJogador(int id) throws JogadorNaoEncontradoException {
+        boolean removido = jogadorRepository.removerJogador(id);
+        if (!removido) {
+            throw new JogadorNaoEncontradoException(id);
+        }
     }
 
     /**
      * Busca jogador por nick.
-     * TODO Pessoa 3: lançar JogadorNaoEncontradoException se não encontrar.
      */
-    public Jogador buscarPorNick(String nick) {
-        // TODO: delegar ao repositório e tratar Optional
-        throw new UnsupportedOperationException("Não implementado ainda — Pessoa 3");
+    public Jogador buscarPorNick(String nick) throws JogadorNaoEncontradoException {
+        Optional<Jogador> resultado = jogadorRepository.buscarPorNick(nick);
+        return resultado.orElseThrow(() -> new JogadorNaoEncontradoException("nick", nick));
+    }
+
+    /**
+     * Busca jogador por ID.
+     */
+    public Jogador buscarPorId(int id) throws JogadorNaoEncontradoException {
+        Optional<Jogador> resultado = jogadorRepository.buscarPorId(id);
+        return resultado.orElseThrow(() -> new JogadorNaoEncontradoException(id));
     }
 
     /**
      * Lista todos os jogadores de um jogo específico.
-     * TODO Pessoa 3: implementar filtro por jogo.
      */
     public List<Jogador> listarPorJogo(Jogo jogo) {
-        // TODO: usar stream + filter
-        throw new UnsupportedOperationException("Não implementado ainda — Pessoa 3");
+        return jogadorRepository.listarJogadores().stream()
+                .filter(j -> j.getJogo() == jogo)
+                .collect(Collectors.toList());
     }
 
     /**

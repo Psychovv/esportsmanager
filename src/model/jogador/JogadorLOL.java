@@ -5,7 +5,6 @@ import model.enums.Posicao;
 
 /**
  * Representa um jogador de League of Legends.
- * PESSOA 1 — implementar atributos específicos do LOL (ex: KDA, campeão principal, etc.)
  */
 public class JogadorLOL extends Jogador {
 

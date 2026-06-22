@@ -5,7 +5,6 @@ import model.enums.Posicao;
 
 /**
  * Representa um jogador de Valorant.
- * PESSOA 1 — implementar atributos específicos do Valorant (ex: agente principal, ACS, etc.)
  */
 public class JogadorValorant extends Jogador {
 

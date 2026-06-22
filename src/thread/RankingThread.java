@@ -1,11 +1,13 @@
 package thread;
 
+import model.jogador.Jogador;
 import service.RankingService;
+
+import java.util.List;
 
 /**
  * Thread que atualiza o ranking automaticamente a cada 10 segundos.
  * Requisito obrigatório da disciplina.
- * TODO (Sprint 2, após tudo pronto): descomentar a linha de atualização real.
  */
 public class RankingThread extends Thread {
 
@@ -32,8 +34,13 @@ public class RankingThread extends Thread {
     }
 
     private void atualizarRanking() {
-        // TODO Sprint 2: chamar rankingService.rankingGeralJogadores() e exibir/logar
-        System.out.println("[RankingThread] Ranking atualizado em: " + new java.util.Date());
+        List<Jogador> ranking = rankingService.rankingGeralJogadores();
+        System.out.println("\n[RankingThread] Ranking atualizado em " + new java.util.Date() + ":");
+        int posicao = 1;
+        for (Jogador j : ranking) {
+            System.out.println("  " + posicao + "º - " + j.getNick() + " (" + String.format("%.2f", j.getPontuacao()) + " pts)");
+            posicao++;
+        }
     }
 
     public void encerrar() {

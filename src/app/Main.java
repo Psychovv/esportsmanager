@@ -1,5 +1,8 @@
 package app;
 
+import exception.JogadorNaoEncontradoException;
+import exception.TimeNaoEncontradoException;
+import exception.TransferenciaInvalidaException;
 import model.enums.Jogo;
 import model.enums.Posicao;
 import model.jogador.Jogador;
@@ -9,35 +12,42 @@ import model.jogador.JogadorValorant;
 import model.time.Time;
 import repository.JogadorRepository;
 import repository.TimeRepository;
+import service.ArquivoService;
+import service.JogadorService;
+import service.RankingService;
+import service.TransferenciaService;
+import thread.RankingThread;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 /**
  * Ponto de entrada da aplicação — Menu de console.
- * Pessoa 4 — Sprint 1
- *
- * ATENÇÃO: enquanto P2 e P3 não implementarem os services/repositórios,
- * os dados são gerenciados direto aqui com ArrayLists temporários.
- * Quando estiverem prontos, trocar pelas chamadas dos services.
+ * Usa os repositórios e services reais (Sprint 1 + Sprint 2 completas).
  */
 public class Main {
 
-    // --- Dados temporários (remover quando P2/P3 estiverem prontos) ---
-    static ArrayList<Jogador> jogadores = new ArrayList<>();
-    static ArrayList<Time> times = new ArrayList<>();
-    static int proximoIdJogador = 1;
-    static int proximoIdTime = 1;
+    // Repositórios compartilhados
+    static JogadorRepository jogadorRepo = new JogadorRepository();
+    static TimeRepository timeRepo = new TimeRepository();
+
+    // Services
+    static JogadorService jogadorService = new JogadorService(jogadorRepo);
+    static TransferenciaService transferenciaService = new TransferenciaService(jogadorRepo, timeRepo);
+    static RankingService rankingService = new RankingService(jogadorRepo, timeRepo);
+    static ArquivoService arquivoService = new ArquivoService(jogadorRepo, timeRepo);
 
     static Scanner scanner = new Scanner(System.in);
 
-    // Separadores visuais
     static final String LINHA  = "============================================";
     static final String LINHA2 = "--------------------------------------------";
 
     public static void main(String[] args) {
-        carregarDadosDeTeste(); // dados fake pra demonstração
+        carregarDadosDeTeste();
+
+        // Inicia a thread que atualiza o ranking a cada 10 segundos em segundo plano
+        RankingThread rankingThread = new RankingThread(rankingService);
+        rankingThread.start();
 
         int opcao = -1;
         while (opcao != 0) {
@@ -49,10 +59,13 @@ public class Main {
                 case 2 -> menuTimes();
                 case 3 -> transferirJogador();
                 case 4 -> listarJogadores();
+                case 5 -> menuRanking();
+                case 6 -> menuArquivos();
                 case 0 -> System.out.println("\nSaindo do sistema. Até mais!");
                 default -> System.out.println("  [!] Opção inválida. Tente novamente.");
             }
         }
+        rankingThread.encerrar();
     }
 
     // =========================================================
@@ -67,6 +80,8 @@ public class Main {
         System.out.println("  2  » Gerenciar Times");
         System.out.println("  3  » Transferir Jogador");
         System.out.println("  4  » Listar Todos os Jogadores");
+        System.out.println("  5  » Ranking");
+        System.out.println("  6  » Salvar / Carregar Arquivos");
         System.out.println("  0  » Sair");
         System.out.println(LINHA2);
         System.out.print("  Escolha: ");
@@ -114,6 +129,68 @@ public class Main {
         }
     }
 
+    static void menuRanking() {
+        System.out.println("\n" + LINHA);
+        System.out.println("                 RANKING");
+        System.out.println(LINHA);
+        System.out.println("  1  » Ranking Geral de Jogadores");
+        System.out.println("  2  » Ranking por Jogo");
+        System.out.println("  3  » Ranking por Posição");
+        System.out.println("  4  » Ranking de Times");
+        System.out.println("  0  » Voltar");
+        System.out.println(LINHA2);
+        System.out.print("  Escolha: ");
+
+        int opcao = lerInt();
+        switch (opcao) {
+            case 1 -> exibirRankingJogadores(rankingService.rankingGeralJogadores());
+            case 2 -> {
+                Jogo jogo = escolherJogo();
+                if (jogo != null) exibirRankingJogadores(rankingService.rankingPorJogo(jogo));
+            }
+            case 3 -> {
+                System.out.print("  Digite a posição exatamente (ex: TOP, AWPER, DUELISTA): ");
+                String posInput = scanner.nextLine().trim().toUpperCase();
+                try {
+                    Posicao posicao = Posicao.valueOf(posInput);
+                    exibirRankingJogadores(rankingService.rankingPorPosicao(posicao));
+                } catch (IllegalArgumentException e) {
+                    System.out.println("  [!] Posição inválida.");
+                }
+            }
+            case 4 -> exibirRankingTimes(rankingService.rankingTimes());
+            case 0 -> {}
+            default -> System.out.println("  [!] Opção inválida.");
+        }
+    }
+
+    static void menuArquivos() {
+        System.out.println("\n" + LINHA);
+        System.out.println("            SALVAR / CARREGAR");
+        System.out.println(LINHA);
+        System.out.println("  1  » Salvar Jogadores e Times em arquivo");
+        System.out.println("  2  » Carregar Jogadores e Times do arquivo");
+        System.out.println("  0  » Voltar");
+        System.out.println(LINHA2);
+        System.out.print("  Escolha: ");
+
+        int opcao = lerInt();
+        switch (opcao) {
+            case 1 -> {
+                arquivoService.salvarJogadores();
+                arquivoService.salvarTimes();
+            }
+            case 2 -> {
+                arquivoService.carregarTimes();
+                arquivoService.carregarJogadores();
+                arquivoService.religarJogadoresAosTimes();
+                System.out.println("  [✓] Dados carregados e jogadores religados aos times.");
+            }
+            case 0 -> {}
+            default -> System.out.println("  [!] Opção inválida.");
+        }
+    }
+
     // =========================================================
     //  JOGADORES
     // =========================================================
@@ -125,12 +202,6 @@ public class Main {
 
         System.out.print("  Nick: ");
         String nick = scanner.nextLine().trim();
-        if (nick.isEmpty()) { System.out.println("  [!] Nick não pode ser vazio."); return; }
-
-        if (buscarPorNick(nick) != null) {
-            System.out.println("  [!] Já existe um jogador com esse nick.");
-            return;
-        }
 
         System.out.print("  Nome real: ");
         String nomeReal = scanner.nextLine().trim();
@@ -153,27 +224,39 @@ public class Main {
             case CS -> {
                 System.out.print("  Rating (ex: 1.15): ");
                 double rating = lerDouble();
-                novoJogador = new JogadorCS(proximoIdJogador++, nick, nomeReal, idade, posicao, salario, rating);
+                System.out.print("  Abates por partida (ex: 18): ");
+                double abates = lerDouble();
+                System.out.print("  Percentual de Headshot (ex: 0.45 para 45%%): ");
+                double hs = lerDouble();
+                novoJogador = new JogadorCS(0, nick, nomeReal, idade, posicao, salario, rating, abates, hs);
             }
             case VALORANT -> {
-                System.out.print("  ACS (Average Combat Score, ex: 245.0): ");
+                System.out.print("  ACS (ex: 245.0): ");
                 double acs = lerDouble();
                 System.out.print("  Agente principal: ");
                 String agente = scanner.nextLine().trim();
-                novoJogador = new JogadorValorant(proximoIdJogador++, nick, nomeReal, idade, posicao, salario, acs, agente);
+                System.out.print("  KDA (ex: 1.5): ");
+                double kda = lerDouble();
+                novoJogador = new JogadorValorant(0, nick, nomeReal, idade, posicao, salario, acs, agente, kda);
             }
             case LOL -> {
                 System.out.print("  KDA (ex: 4.2): ");
                 double kda = lerDouble();
                 System.out.print("  Campeão principal: ");
                 String campeao = scanner.nextLine().trim();
-                novoJogador = new JogadorLOL(proximoIdJogador++, nick, nomeReal, idade, posicao, salario, kda, campeao);
+                System.out.print("  CS por minuto (ex: 8.5): ");
+                double cs = lerDouble();
+                novoJogador = new JogadorLOL(0, nick, nomeReal, idade, posicao, salario, kda, campeao, cs);
             }
             default -> { return; }
         }
 
-        jogadores.add(novoJogador);
-        System.out.println("\n  [✓] Jogador '" + nick + "' cadastrado com sucesso! ID: " + novoJogador.getId());
+        try {
+            jogadorService.cadastrarJogador(novoJogador);
+            System.out.println("\n  [✓] Jogador '" + nick + "' cadastrado com sucesso! ID: " + novoJogador.getId());
+        } catch (IllegalArgumentException e) {
+            System.out.println("  [!] " + e.getMessage());
+        }
     }
 
     static void buscarJogadorPorNick() {
@@ -181,38 +264,36 @@ public class Main {
         System.out.print("  Nick do jogador: ");
         String nick = scanner.nextLine().trim();
 
-        Jogador j = buscarPorNick(nick);
-        if (j == null) {
-            System.out.println("  [!] Jogador '" + nick + "' não encontrado.");
-        } else {
+        try {
+            Jogador j = jogadorService.buscarPorNick(nick);
             System.out.println("\n  " + j.exibir());
+        } catch (JogadorNaoEncontradoException e) {
+            System.out.println("  [!] " + e.getMessage());
         }
     }
 
     static void removerJogador() {
-        if (jogadores.isEmpty()) { System.out.println("  [!] Nenhum jogador cadastrado."); return; }
+        if (jogadorRepo.listarJogadores().isEmpty()) { System.out.println("  [!] Nenhum jogador cadastrado."); return; }
 
         listarJogadores();
         System.out.print("\n  ID do jogador a remover: ");
         int id = lerInt();
 
-        Jogador alvo = buscarPorId(id);
-        if (alvo == null) {
-            System.out.println("  [!] Jogador com ID " + id + " não encontrado.");
-            return;
+        try {
+            Jogador alvo = jogadorService.buscarPorId(id);
+            // Remove do time se estiver em um, antes de remover do repositório
+            if (alvo.getTimeAtual() != null) {
+                timeRepo.buscarPorNome(alvo.getTimeAtual()).ifPresent(time -> time.removerJogador(alvo));
+            }
+            jogadorService.removerJogador(id);
+            System.out.println("  [✓] Jogador '" + alvo.getNick() + "' removido.");
+        } catch (JogadorNaoEncontradoException e) {
+            System.out.println("  [!] " + e.getMessage());
         }
-
-        // Remove do time se estiver em um
-        if (alvo.getTimeAtual() != null) {
-            Time time = buscarTimePorNome(alvo.getTimeAtual());
-            if (time != null) time.removerJogador(alvo);
-        }
-
-        jogadores.remove(alvo);
-        System.out.println("  [✓] Jogador '" + alvo.getNick() + "' removido.");
     }
 
     static void listarJogadores() {
+        List<Jogador> jogadores = jogadorService.listarTodos();
         System.out.println("\n" + LINHA);
         System.out.println("  JOGADORES CADASTRADOS (" + jogadores.size() + ")");
         System.out.println(LINHA);
@@ -239,7 +320,6 @@ public class Main {
 
         System.out.print("  Nome do time: ");
         String nome = scanner.nextLine().trim();
-        if (nome.isEmpty()) { System.out.println("  [!] Nome não pode ser vazio."); return; }
 
         System.out.print("  Tag (ex: FURIA): ");
         String tag = scanner.nextLine().trim().toUpperCase();
@@ -247,12 +327,19 @@ public class Main {
         Jogo jogo = escolherJogo();
         if (jogo == null) return;
 
-        Time novoTime = new Time(proximoIdTime++, nome, tag, jogo);
-        times.add(novoTime);
+        System.out.print("  País: ");
+        String pais = scanner.nextLine().trim();
+
+        System.out.print("  Ano de fundação: ");
+        int ano = lerInt();
+
+        Time novoTime = new Time(0, nome, tag, jogo, pais, ano);
+        timeRepo.adicionarTime(novoTime);
         System.out.println("\n  [✓] Time '" + nome + "' cadastrado! ID: " + novoTime.getId());
     }
 
     static void listarTimes() {
+        List<Time> times = timeRepo.listarTimes();
         System.out.println("\n" + LINHA);
         System.out.println("  TIMES CADASTRADOS (" + times.size() + ")");
         System.out.println(LINHA);
@@ -269,24 +356,17 @@ public class Main {
     }
 
     static void verJogadoresDoTime() {
-        if (times.isEmpty()) { System.out.println("  [!] Nenhum time cadastrado."); return; }
+        if (timeRepo.listarTimes().isEmpty()) { System.out.println("  [!] Nenhum time cadastrado."); return; }
 
         listarTimes();
         System.out.print("\n  ID do time: ");
         int id = lerInt();
 
-        Time time = buscarTimePorId(id);
-        if (time == null) { System.out.println("  [!] Time não encontrado."); return; }
+        var timeOpt = timeRepo.buscarPorId(id);
+        if (timeOpt.isEmpty()) { System.out.println("  [!] Time não encontrado."); return; }
 
-        System.out.println("\n  Time: " + time.getNome() + " [" + time.getTag() + "]");
-        System.out.println(LINHA2);
-        if (time.getJogadores().isEmpty()) {
-            System.out.println("  Nenhum jogador neste time.");
-        } else {
-            for (Jogador j : time.getJogadores()) {
-                System.out.println("  » " + j.getNick() + " | " + j.getPosicao());
-            }
-        }
+        Time time = timeOpt.get();
+        System.out.println("\n  " + time.exibir());
     }
 
     // =========================================================
@@ -298,39 +378,64 @@ public class Main {
         System.out.println("  TRANSFERIR JOGADOR");
         System.out.println(LINHA);
 
-        if (jogadores.isEmpty()) { System.out.println("  [!] Nenhum jogador cadastrado."); return; }
-        if (times.isEmpty())     { System.out.println("  [!] Nenhum time cadastrado."); return; }
+        if (jogadorRepo.listarJogadores().isEmpty()) { System.out.println("  [!] Nenhum jogador cadastrado."); return; }
+        if (timeRepo.listarTimes().isEmpty())        { System.out.println("  [!] Nenhum time cadastrado."); return; }
 
         listarJogadores();
         System.out.print("\n  ID do jogador: ");
         int idJogador = lerInt();
-        Jogador jogador = buscarPorId(idJogador);
-        if (jogador == null) { System.out.println("  [!] Jogador não encontrado."); return; }
 
         listarTimes();
         System.out.print("\n  ID do time de destino: ");
         int idTime = lerInt();
-        Time destino = buscarTimePorId(idTime);
-        if (destino == null) { System.out.println("  [!] Time não encontrado."); return; }
 
-        // Validar jogo compatível
-        if (!jogador.getJogo().equals(destino.getJogo())) {
-            System.out.println("  [!] Incompatível: jogador é de " + jogador.getJogo()
-                    + " mas o time é de " + destino.getJogo() + ".");
+        try {
+            transferenciaService.transferirJogador(idJogador, idTime);
+            Jogador jogador = jogadorService.buscarPorId(idJogador);
+            System.out.println("\n  [✓] " + jogador.getNick() + " transferido para " + jogador.getTimeAtual() + "!");
+        } catch (JogadorNaoEncontradoException | TimeNaoEncontradoException | TransferenciaInvalidaException e) {
+            System.out.println("  [!] " + e.getMessage());
+        }
+    }
+
+    // =========================================================
+    //  RANKING — EXIBIÇÃO
+    // =========================================================
+
+    static void exibirRankingJogadores(List<Jogador> ranking) {
+        System.out.println("\n" + LINHA);
+        System.out.println("  RANKING DE JOGADORES");
+        System.out.println(LINHA);
+
+        if (ranking.isEmpty()) {
+            System.out.println("  Nenhum jogador encontrado.");
             return;
         }
 
-        // Remover do time anterior
-        if (jogador.getTimeAtual() != null) {
-            Time origem = buscarTimePorNome(jogador.getTimeAtual());
-            if (origem != null) origem.removerJogador(jogador);
+        int posicao = 1;
+        for (Jogador j : ranking) {
+            System.out.println("  " + posicao + "º - " + j.getNick() + " (" + j.getJogo() + ") | "
+                    + String.format("%.2f", j.getPontuacao()) + " pts");
+            posicao++;
+        }
+    }
+
+    static void exibirRankingTimes(List<Time> ranking) {
+        System.out.println("\n" + LINHA);
+        System.out.println("  RANKING DE TIMES");
+        System.out.println(LINHA);
+
+        if (ranking.isEmpty()) {
+            System.out.println("  Nenhum time encontrado.");
+            return;
         }
 
-        // Adicionar no novo time
-        destino.adicionarJogador(jogador);
-        jogador.setTimeAtual(destino.getNome());
-
-        System.out.println("\n  [✓] " + jogador.getNick() + " transferido para " + destino.getNome() + "!");
+        int posicao = 1;
+        for (Time t : ranking) {
+            System.out.println("  " + posicao + "º - " + t.getTag() + " (" + t.getJogo() + ") | "
+                    + String.format("%.2f", t.getPontuacao()) + " pts");
+            posicao++;
+        }
     }
 
     // =========================================================
@@ -354,57 +459,35 @@ public class Main {
     static Posicao escolherPosicao(Jogo jogo) {
         if (jogo == Jogo.LOL) {
             System.out.println("  Posição:");
-            System.out.println("    1 » Top   2 » Jungle   3 » Mid   4 » ADC   5 » Support");
+            System.out.println("    1 » Top   2 » Jungle   3 » Mid   4 » ADC   5 » Suporte");
             System.out.print("  Escolha: ");
             return switch (lerInt()) {
                 case 1 -> Posicao.TOP;
                 case 2 -> Posicao.JUNGLE;
                 case 3 -> Posicao.MID;
                 case 4 -> Posicao.ADC;
-                case 5 -> Posicao.SUP;
+                case 5 -> Posicao.SUPORTELOL;
                 default -> { System.out.println("  [!] Posição inválida."); yield null; }
             };
         } else {
             System.out.println("  Posição:");
-            System.out.println("    1 » Duelista   2 » Suporte   3 » Sniper   4 » Capitão   5 » Entry");
+            System.out.println("    1 » Capitão     2 » Fragger     3 » Suporte");
+            System.out.println("    4 » Awper       5 » Lurker      6 » Duelista");
+            System.out.println("    7 » Iniciador   8 » Controlador 9 » Sentinela");
             System.out.print("  Escolha: ");
             return switch (lerInt()) {
-                case 1 -> Posicao.DUELISTA;
-                case 2 -> Posicao.SUPORTE;
-                case 3 -> Posicao.SNIPER;
-                case 4 -> Posicao.CAPITAO;
-                case 5 -> Posicao.ENTRY;
+                case 1 -> Posicao.CAPITAO;
+                case 2 -> Posicao.FRAGGER;
+                case 3 -> Posicao.SUPORTE;
+                case 4 -> Posicao.AWPER;
+                case 5 -> Posicao.LURKER;
+                case 6 -> Posicao.DUELISTA;
+                case 7 -> Posicao.INICIADOR;
+                case 8 -> Posicao.CONTROLADOR;
+                case 9 -> Posicao.SENTINELA;
                 default -> { System.out.println("  [!] Posição inválida."); yield null; }
             };
         }
-    }
-
-    // =========================================================
-    //  HELPERS DE BUSCA (temporários — substituir pelos services)
-    // =========================================================
-
-    static Jogador buscarPorNick(String nick) {
-        for (Jogador j : jogadores)
-            if (j.getNick().equalsIgnoreCase(nick)) return j;
-        return null;
-    }
-
-    static Jogador buscarPorId(int id) {
-        for (Jogador j : jogadores)
-            if (j.getId() == id) return j;
-        return null;
-    }
-
-    static Time buscarTimePorId(int id) {
-        for (Time t : times)
-            if (t.getId() == id) return t;
-        return null;
-    }
-
-    static Time buscarTimePorNome(String nome) {
-        for (Time t : times)
-            if (t.getNome().equalsIgnoreCase(nome)) return t;
-        return null;
     }
 
     // =========================================================
@@ -428,48 +511,44 @@ public class Main {
     }
 
     // =========================================================
-    //  DADOS DE TESTE (remover quando P2/P3 estiverem prontos)
+    //  DADOS DE TESTE
     // =========================================================
 
     static void carregarDadosDeTeste() {
-        // Times
-        Time furia  = new Time(proximoIdTime++, "FURIA Esports", "FURIA", Jogo.CS);
-        Time loud   = new Time(proximoIdTime++, "LOUD",          "LOUD",  Jogo.VALORANT);
-        Time pain   = new Time(proximoIdTime++, "paiN Gaming",   "paiN",  Jogo.LOL);
-        times.add(furia);
-        times.add(loud);
-        times.add(pain);
+        Time furia = new Time(0, "FURIA Esports", "FURIA", Jogo.CS, "Brasil", 2017);
+        Time loud  = new Time(0, "LOUD",          "LOUD",  Jogo.VALORANT, "Brasil", 2019);
+        Time pain  = new Time(0, "paiN Gaming",   "paiN",  Jogo.LOL, "Brasil", 2002);
+        timeRepo.adicionarTime(furia);
+        timeRepo.adicionarTime(loud);
+        timeRepo.adicionarTime(pain);
 
-        // Jogadores CS
-        Jogador fallen = new JogadorCS(proximoIdJogador++, "FalleN",  "Gabriel Toledo",  32, Posicao.SNIPER,   50000, 1.08);
-        Jogador kscerato = new JogadorCS(proximoIdJogador++, "kscerato","Kaike Cerato",   25, Posicao.ENTRY,    45000, 1.21);
+        Jogador fallen   = new JogadorCS(0, "FalleN",   "Gabriel Toledo",  32, Posicao.AWPER,    50000, 1.08, 16.5, 0.42);
+        Jogador kscerato = new JogadorCS(0, "kscerato",  "Kaike Cerato",    25, Posicao.FRAGGER,  45000, 1.21, 19.0, 0.50);
 
-        // Jogadores Valorant
-        Jogador aspas  = new JogadorValorant(proximoIdJogador++, "aspas",  "Erick Santos", 21, Posicao.DUELISTA, 40000, 285.3, "Jett");
-        Jogador saadhak = new JogadorValorant(proximoIdJogador++, "saadhak","Matias Delipetro",24,Posicao.CAPITAO,38000,210.5,"Viper");
+        Jogador aspas    = new JogadorValorant(0, "aspas",   "Erick Santos",     21, Posicao.DUELISTA, 40000, 285.3, "Jett",  1.45);
+        Jogador saadhak  = new JogadorValorant(0, "saadhak", "Matias Delipetro", 24, Posicao.CONTROLADOR, 38000, 210.5, "Viper", 1.10);
 
-        // Jogadores LOL
-        Jogador tinowns = new JogadorLOL(proximoIdJogador++, "Tinowns", "Antonio Lira",  26, Posicao.MID,      35000, 5.2, "Azir");
-        Jogador cariok  = new JogadorLOL(proximoIdJogador++, "Cariok",  "Marcos Oliveira",28,Posicao.JUNGLE,   33000, 4.8, "Vi");
+        Jogador tinowns  = new JogadorLOL(0, "Tinowns", "Antonio Lira",   26, Posicao.MID,    35000, 5.2, "Azir", 8.7);
+        Jogador cariok   = new JogadorLOL(0, "Cariok",  "Marcos Oliveira",28, Posicao.JUNGLE, 33000, 4.8, "Vi",   6.2);
 
-        // Adicionar times
-        fallen.setTimeAtual(furia.getNome());    furia.adicionarJogador(fallen);
-        kscerato.setTimeAtual(furia.getNome());  furia.adicionarJogador(kscerato);
-        aspas.setTimeAtual(loud.getNome());      loud.adicionarJogador(aspas);
-        saadhak.setTimeAtual(loud.getNome());    loud.adicionarJogador(saadhak);
-        tinowns.setTimeAtual(pain.getNome());    pain.adicionarJogador(tinowns);
-        cariok.setTimeAtual(pain.getNome());     pain.adicionarJogador(cariok);
+        jogadorService.cadastrarJogador(fallen);
+        jogadorService.cadastrarJogador(kscerato);
+        jogadorService.cadastrarJogador(aspas);
+        jogadorService.cadastrarJogador(saadhak);
+        jogadorService.cadastrarJogador(tinowns);
+        jogadorService.cadastrarJogador(cariok);
 
-        jogadores.add(fallen);
-        jogadores.add(kscerato);
-        jogadores.add(aspas);
-        jogadores.add(saadhak);
-        jogadores.add(tinowns);
-        jogadores.add(cariok);
+        fallen.setTimeAtual(furia.getNome());     furia.adicionarJogador(fallen);
+        kscerato.setTimeAtual(furia.getNome());   furia.adicionarJogador(kscerato);
+        aspas.setTimeAtual(loud.getNome());       loud.adicionarJogador(aspas);
+        saadhak.setTimeAtual(loud.getNome());     loud.adicionarJogador(saadhak);
+        tinowns.setTimeAtual(pain.getNome());     pain.adicionarJogador(tinowns);
+        cariok.setTimeAtual(pain.getNome());      pain.adicionarJogador(cariok);
 
         System.out.println(LINHA);
-        System.out.println("   ESPORTS MANAGER  |  Sprint 1");
+        System.out.println("   ESPORTS MANAGER");
         System.out.println(LINHA);
-        System.out.println("  [i] " + jogadores.size() + " jogadores e " + times.size() + " times carregados.");
+        System.out.println("  [i] " + jogadorService.listarTodos().size() + " jogadores e "
+                + timeRepo.listarTimes().size() + " times carregados.");
     }
 }

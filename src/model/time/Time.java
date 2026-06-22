@@ -16,7 +16,7 @@ public class Time implements Ranqueavel, Exibivel {
     private Jogo jogo;
     private List<Jogador> jogadores;
 
-    // Atributos adicionados (Pessoa 1)
+    // Atributos adicionados
     private String pais;
     private int anoFundacao;
 
